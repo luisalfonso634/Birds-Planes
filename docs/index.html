@@ -63,6 +63,11 @@
             transform: scale(0.95);
         }
         
+        #playButton:disabled {
+            animation: none;
+            opacity: 0.8;
+        }
+        
         @keyframes pulse {
             0%, 100% { transform: scale(1); }
             50% { transform: scale(1.05); }
@@ -74,6 +79,83 @@
             font-size: 1em;
         }
         
+        .emoji {
+            font-size: 3em;
+            margin-bottom: 20px;
+        }
+        
+        /* Loading Screen */
+        #loadingScreen {
+            display: none;
+            text-align: center;
+            padding: 20px;
+        }
+        
+        .loader {
+            width: 80px;
+            height: 80px;
+            border: 8px solid rgba(255,255,255,0.3);
+            border-top: 8px solid #FFD700;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 30px;
+        }
+        
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        
+        .loading-title {
+            color: #FFD700;
+            font-size: 1.8em;
+            margin-bottom: 15px;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.5);
+        }
+        
+        .loading-info {
+            color: white;
+            font-size: 1em;
+            margin-bottom: 10px;
+        }
+        
+        .loading-tip {
+            color: rgba(255,255,255,0.7);
+            font-size: 0.9em;
+            margin-top: 20px;
+            font-style: italic;
+        }
+        
+        /* Progress bar */
+        .progress-container {
+            width: 80%;
+            max-width: 300px;
+            height: 20px;
+            background: rgba(0,0,0,0.3);
+            border-radius: 10px;
+            margin: 20px auto;
+            overflow: hidden;
+        }
+        
+        .progress-bar {
+            height: 100%;
+            background: linear-gradient(90deg, #FFD700, #FFA500);
+            width: 0%;
+            animation: loading 30s ease-out forwards;
+            border-radius: 10px;
+        }
+        
+        @keyframes loading {
+            0% { width: 0%; }
+            10% { width: 15%; }
+            30% { width: 40%; }
+            50% { width: 60%; }
+            70% { width: 75%; }
+            90% { width: 90%; }
+            100% { width: 95%; }
+        }
+        
+        /* Game container */
         #gameContainer {
             display: none;
             width: 100%;
@@ -81,6 +163,7 @@
             position: fixed;
             top: 0;
             left: 0;
+            background: #000;
         }
         
         #gameFrame {
@@ -88,14 +171,10 @@
             height: 100%;
             border: none;
         }
-        
-        .emoji {
-            font-size: 3em;
-            margin-bottom: 20px;
-        }
     </style>
 </head>
 <body>
+    <!-- Pantalla de Inicio -->
     <div id="startScreen">
         <div class="emoji">🐦 ✈️</div>
         <h1>BIRDS & PLANES</h1>
@@ -104,28 +183,56 @@
         <p id="loadingText">Toca el botón para iniciar</p>
     </div>
     
+    <!-- Pantalla de Carga -->
+    <div id="loadingScreen">
+        <div class="emoji">🐦 ✈️</div>
+        <div class="loading-title">Cargando juego...</div>
+        <div class="loader"></div>
+        <div class="progress-container">
+            <div class="progress-bar"></div>
+        </div>
+        <div class="loading-info">Descargando recursos del juego</div>
+        <div class="loading-tip">Primera vez tarda ~30 segundos<br>Después será más rápido</div>
+    </div>
+    
+    <!-- Contenedor del Juego -->
     <div id="gameContainer">
         <iframe id="gameFrame" src="" allow="autoplay; fullscreen"></iframe>
     </div>
 
     <script>
         function startGame() {
-            document.getElementById('loadingText').textContent = 'Cargando juego...';
-            document.getElementById('playButton').textContent = 'Cargando...';
-            document.getElementById('playButton').disabled = true;
-            
-            // Activar contexto de audio
+            // Activar contexto de audio (necesario en móviles)
             try {
                 let ctx = new (window.AudioContext || window.webkitAudioContext)();
                 ctx.resume();
             } catch(e) {}
             
-            // Mostrar el juego en iframe después de un momento
+            // Mostrar pantalla de carga
+            document.getElementById('startScreen').style.display = 'none';
+            document.getElementById('loadingScreen').style.display = 'block';
+            
+            // Cargar el juego en el iframe
             setTimeout(function() {
-                document.getElementById('startScreen').style.display = 'none';
-                document.getElementById('gameContainer').style.display = 'block';
-                document.getElementById('gameFrame').src = 'game.html';
+                let iframe = document.getElementById('gameFrame');
+                iframe.src = 'game.html';
+                
+                // Cuando el iframe cargue, mostrar el juego
+                iframe.onload = function() {
+                    setTimeout(function() {
+                        document.getElementById('loadingScreen').style.display = 'none';
+                        document.getElementById('gameContainer').style.display = 'block';
+                    }, 2000);
+                };
             }, 500);
+            
+            // Fallback: mostrar el juego después de 35 segundos máximo
+            setTimeout(function() {
+                if (document.getElementById('loadingScreen').style.display !== 'none') {
+                    document.getElementById('loadingScreen').style.display = 'none';
+                    document.getElementById('gameContainer').style.display = 'block';
+                }
+            }, 35000);
         }
     </script>
 </body>
