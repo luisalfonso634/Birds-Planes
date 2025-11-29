@@ -5,6 +5,8 @@ Birds & Planes
 Un juego tipo Frogger donde controlas un pájaro que debe cruzar carriles
 evitando aviones. Desarrollado con Python y Pygame.
 
+Compatible con Pygbag para versión web.
+
 Controles:
 - Flechas direccionales: Mover el pájaro
 - P: Pausar/Reanudar
@@ -21,6 +23,7 @@ import json
 import os
 import random
 import sys
+import asyncio
 from typing import List, Dict, Tuple, Optional
 
 # ============================================================================
@@ -452,13 +455,13 @@ class GameUI:
         self.screen.blit(subtitle, subtitle_rect)
         
         # Highscore
-        hs_text = self.font_medium.render(f"Récord: {highscore}", True, ORANGE)
+        hs_text = self.font_medium.render(f"Record: {highscore}", True, ORANGE)
         hs_rect = hs_text.get_rect(center=(self.width // 2, self.height // 2 - 30))
         self.screen.blit(hs_text, hs_rect)
         
         # Instrucciones
         instructions = [
-            "Flechas: Mover pájaro",
+            "Flechas: Mover pajaro",
             "P: Pausar | M: Sonido | ESC: Salir",
             "",
             "Presiona ESPACIO para comenzar"
@@ -490,13 +493,11 @@ class GameUI:
                              (self.width // 2 + i * 25, 20), 8)
         
         # Highscore
-        hs_text = self.font_small.render(f"Récord: {highscore}", True, ORANGE)
+        hs_text = self.font_small.render(f"Record: {highscore}", True, ORANGE)
         hs_rect = hs_text.get_rect(topright=(self.width - 10, 8))
         self.screen.blit(hs_text, hs_rect)
         
         # Indicador de sonido
-        sound_indicator = "🔊" if sound_on else "🔇"
-        # Usar texto simple si los emojis no funcionan
         sound_text = self.font_small.render(
             f"[M] {'ON' if sound_on else 'OFF'}", True, 
             GREEN if sound_on else GRAY
@@ -531,22 +532,22 @@ class GameUI:
         self.screen.blit(go_text, go_rect)
         
         # Puntuación final
-        score_text = self.font_medium.render(f"Puntuación: {score}", True, WHITE)
+        score_text = self.font_medium.render(f"Puntuacion: {score}", True, WHITE)
         score_rect = score_text.get_rect(center=(self.width // 2, self.height // 2 - 20))
         self.screen.blit(score_text, score_rect)
         
         # Nuevo récord
         if is_new_record:
-            record_text = self.font_medium.render("¡NUEVO RÉCORD!", True, YELLOW)
+            record_text = self.font_medium.render("NUEVO RECORD!", True, YELLOW)
             record_rect = record_text.get_rect(center=(self.width // 2, self.height // 2 + 30))
             self.screen.blit(record_text, record_rect)
         else:
-            hs_text = self.font_small.render(f"Récord: {highscore}", True, ORANGE)
+            hs_text = self.font_small.render(f"Record: {highscore}", True, ORANGE)
             hs_rect = hs_text.get_rect(center=(self.width // 2, self.height // 2 + 30))
             self.screen.blit(hs_text, hs_rect)
         
         # Instrucciones
-        restart_text = self.font_small.render("R: Reiniciar | ESC: Menú", True, GRAY)
+        restart_text = self.font_small.render("R: Reiniciar | ESC: Menu", True, GRAY)
         restart_rect = restart_text.get_rect(center=(self.width // 2, self.height * 2 // 3 + 30))
         self.screen.blit(restart_text, restart_rect)
     
@@ -563,7 +564,7 @@ class GameUI:
         pygame.draw.line(self.screen, BLUE, (0, y + height), (self.width, y + height), 2)
         
         # Bandera de llegada
-        flag_text = self.font_small.render("¡META!", True, WHITE)
+        flag_text = self.font_small.render("META!", True, WHITE)
         flag_rect = flag_text.get_rect(center=(self.width // 2, y + height // 2))
         self.screen.blit(flag_text, flag_rect)
 
@@ -805,8 +806,8 @@ class GameScene:
             start_y = self.height - self.safe_zone_height // 2
             self.bird.reset_position(start_x, start_y)
     
-    def handle_event(self, event: pygame.event.Event):
-        """Procesa eventos de entrada."""
+    def handle_event(self, event: pygame.event.Event) -> bool:
+        """Procesa eventos de entrada. Retorna False para salir."""
         if event.type == pygame.KEYDOWN:
             if self.state == self.STATE_MENU:
                 if event.key == pygame.K_SPACE:
@@ -913,11 +914,11 @@ class GameScene:
 
 
 # ============================================================================
-# FUNCIÓN PRINCIPAL
+# FUNCIÓN PRINCIPAL (Compatible con Pygbag para web)
 # ============================================================================
 
-def main():
-    """Punto de entrada principal del juego."""
+async def main():
+    """Punto de entrada principal del juego (async para Pygbag)."""
     # Inicializar Pygame
     pygame.init()
     
@@ -972,12 +973,13 @@ def main():
         
         # Actualizar pantalla
         pygame.display.flip()
+        
+        # Yield para Pygbag (permite que el navegador procese otros eventos)
+        await asyncio.sleep(0)
     
     # Limpiar
     pygame.quit()
-    sys.exit(0)
 
 
 if __name__ == '__main__':
-    main()
-
+    asyncio.run(main())

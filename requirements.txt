@@ -4,3 +4,7 @@
 
 # Motor de juegos 2D
 pygame>=2.5.0
+
+# Para compilar a versión web (opcional)
+# pip install pygbag
+# pygbag main.py

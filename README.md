@@ -2,14 +2,22 @@
 
 Un juego tipo Frogger donde controlas un pájaro que debe cruzar carriles esquivando aviones.
 
+## 🎮 ¡JUGAR AHORA! (Versión Web)
+
+### 👉 [CLICK AQUÍ PARA JUGAR](https://luisalfonso634.github.io/Birds-Planes/) 👈
+
+No necesitas instalar nada. Funciona en cualquier navegador moderno.
+
 ---
 
-## 🚀 INSTALACIÓN Y EJECUCIÓN RÁPIDA
+## 🚀 INSTALACIÓN LOCAL (Opcional)
 
-### Requisitos previos
-- **Python 3.8 o superior** - [Descargar aquí](https://www.python.org/downloads/)
+Si prefieres ejecutarlo en tu computadora:
 
-### Pasos para ejecutar
+### Requisitos
+- **Python 3.8 o superior** - [Descargar](https://www.python.org/downloads/)
+
+### Pasos
 
 ```bash
 # 1. Clonar el repositorio
@@ -19,10 +27,10 @@ cd Birds-Planes
 # 2. Instalar dependencias
 pip install -r requirements.txt
 
-# 3. Generar los sprites del juego (solo la primera vez)
+# 3. Generar sprites (solo la primera vez)
 python generate_placeholders.py
 
-# 4. ¡Ejecutar el juego!
+# 4. Ejecutar
 python main.py
 ```
 
@@ -32,128 +40,92 @@ python main.py
 
 | Tecla | Acción |
 |:-----:|--------|
-| **ESPACIO** | Iniciar partida (en menú) |
-| **↑** | Mover arriba |
-| **↓** | Mover abajo |
-| **←** | Mover izquierda |
-| **→** | Mover derecha |
+| **ESPACIO** | Iniciar partida |
+| **↑ ↓ ← →** | Mover el pájaro |
 | **P** | Pausar / Reanudar |
 | **M** | Sonido ON / OFF |
-| **R** | Reiniciar (en Game Over) |
-| **ESC** | Volver al menú / Salir |
+| **R** | Reiniciar (Game Over) |
+| **ESC** | Menú / Salir |
 
 ---
 
-## 🎯 OBJETIVO DEL JUEGO
+## 🎯 CÓMO JUGAR
 
-1. **Inicio**: Tu pájaro comienza en la zona verde (abajo)
+1. **Inicio**: Tu pájaro está en la zona verde (abajo)
 2. **Meta**: Llegar a la zona azul "¡META!" (arriba)
-3. **Obstáculos**: Esquiva los aviones que cruzan en cada carril
-4. **Puntuación**: +100 puntos por cada carril cruzado, +200 bonus al llegar a la meta
+3. **Obstáculos**: ¡Esquiva los aviones!
+4. **Puntos**: +100 por carril cruzado, +200 bonus al llegar
 
 ### Vidas
 - Empiezas con **3 vidas** ❤️❤️❤️
-- Pierdes 1 vida al chocar con un avión
-- **Game Over** cuando pierdes todas las vidas
-
-### Dificultad
-- Cada 15 segundos los aviones se vuelven más rápidos (+8%)
-- ¡Intenta superar tu récord!
+- Pierdes 1 vida al chocar
+- **Game Over** = 0 vidas
 
 ---
 
 ## ⚙️ CONFIGURACIÓN
 
-Edita el archivo `config.json` para personalizar el juego:
+Edita `config.json` para personalizar:
 
 ```json
 {
-    "numLanes": 5,           // Cantidad de carriles
-    "lives": 3,              // Vidas iniciales
+    "numLanes": 5,           // Carriles
+    "lives": 3,              // Vidas
     "pointsPerCross": 100,   // Puntos por carril
-    "spawnRate": 1.0,        // Frecuencia de aviones
-    "planeSpeedRange": [150, 320],  // Velocidad min/max
-    "difficultyStepEveryXSeconds": 15,  // Incremento cada X segundos
-    "difficultySpeedMultiplier": 1.08,  // Factor de incremento
-    "birdSpeed": 200,        // Velocidad del pájaro
-    "soundEnabled": true     // Sonido activado
+    "spawnRate": 1.0,        // Frecuencia aviones
+    "planeSpeedRange": [150, 320],  // Velocidad
+    "birdSpeed": 200         // Velocidad pájaro
 }
 ```
 
 ---
 
-## 📁 ESTRUCTURA DEL PROYECTO
+## 📁 ESTRUCTURA
 
 ```
 Birds-Planes/
-├── main.py                  # Código principal del juego
-├── config.json              # Configuración del juego
-├── requirements.txt         # Dependencias (pygame)
+├── main.py                  # Código del juego
+├── config.json              # Configuración
+├── requirements.txt         # Dependencias
 ├── generate_placeholders.py # Generador de sprites
-├── highscore.json          # Tu récord (se genera automático)
-├── README.md               # Este archivo
-├── tests_manual.md         # Pruebas del juego
-└── assets/                 # Sprites del juego
-    ├── bird_1.png          # Pájaro frame 1
-    ├── bird_2.png          # Pájaro frame 2
-    ├── bird_3.png          # Pájaro frame 3
-    ├── plane_small.png     # Avión pequeño
-    ├── plane_med.png       # Avión mediano
-    ├── plane_large.png     # Avión grande
-    └── background.png      # Fondo del juego
+├── highscore.json          # Tu récord
+├── assets/                 # Sprites
+│   ├── bird_*.png          # Pájaro (3 frames)
+│   ├── plane_*.png         # Aviones
+│   └── background.png      # Fondo
+└── .github/workflows/      # Deploy automático
 ```
 
 ---
 
-## 🎨 PERSONALIZAR SPRITES
+## 🌐 DEPLOY WEB (GitHub Pages)
 
-Para usar tus propios gráficos:
+El juego se compila automáticamente a versión web cuando haces push a `main`.
 
-1. Crea imágenes PNG con fondo transparente
-2. Reemplaza los archivos en `assets/`:
+### Activar GitHub Pages:
+1. Ve a tu repo → **Settings** → **Pages**
+2. En "Source" selecciona **GitHub Actions**
+3. ¡Listo! El juego estará en `https://tu-usuario.github.io/Birds-Planes/`
 
-| Archivo | Tamaño recomendado |
-|---------|-------------------|
-| `bird_1.png`, `bird_2.png`, `bird_3.png` | 32x32 px |
-| `plane_small.png` | 48x24 px |
-| `plane_med.png` | 64x32 px |
-| `plane_large.png` | 80x40 px |
-| `background.png` | 800x600 px |
+### Compilar manualmente:
+```bash
+pip install pygbag
+pygbag main.py
+```
 
 ---
 
-## ❓ SOLUCIÓN DE PROBLEMAS
+## 🔗 COMPARTIR EN REDES SOCIALES
 
-### "No module named pygame"
-```bash
-pip install pygame
+Copia este enlace para compartir:
+```
+https://luisalfonso634.github.io/Birds-Planes/
 ```
 
-### "No se encuentran los assets"
-```bash
-python generate_placeholders.py
-```
-
-### El juego no abre ventana
-- Verifica que tienes Python 3.8+: `python --version`
-- Verifica pygame: `pip show pygame`
-
-### No hay sonido
-- Es normal en algunos sistemas
-- Presiona **M** para verificar si está activado
-
----
-
-## 📦 CREAR EJECUTABLE (.exe)
-
-Para crear un ejecutable sin necesidad de Python:
-
-```bash
-pip install pyinstaller
-pyinstaller --onefile --windowed --add-data "assets;assets" --add-data "config.json;." main.py
-```
-
-El ejecutable estará en `dist/main.exe`
+Texto sugerido:
+> 🎮 ¡Acabo de crear un juego! Ayuda al pájaro a esquivar los aviones. 
+> ¿Puedes superar mi récord? 🐦✈️
+> 👉 https://luisalfonso634.github.io/Birds-Planes/
 
 ---
 
