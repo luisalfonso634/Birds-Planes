@@ -1,2 +1,6 @@
-pygame>=2.5.0
+# Birds & Planes - Dependencias
+# ==============================
+# Instalar con: pip install -r requirements.txt
 
+# Motor de juegos 2D
+pygame>=2.5.0
