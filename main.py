@@ -5,10 +5,10 @@ Birds & Planes
 Un juego tipo Frogger donde controlas un pájaro que debe cruzar carriles
 evitando aviones. Desarrollado con Python y Pygame.
 
-Compatible con Pygbag para versión web.
+Compatible con Pygbag para versión web y dispositivos móviles.
 
 Controles:
-- Flechas direccionales: Mover el pájaro
+- Flechas direccionales / Touch: Mover el pájaro
 - P: Pausar/Reanudar
 - M: Activar/Desactivar sonido
 - R: Reiniciar (en Game Over)
@@ -43,6 +43,7 @@ YELLOW = (255, 255, 50)
 GRAY = (128, 128, 128)
 DARK_GRAY = (40, 40, 50)
 ORANGE = (255, 150, 50)
+LIGHT_BLUE = (100, 150, 255)
 
 
 def load_config() -> Dict:
@@ -70,7 +71,6 @@ def load_config() -> Dict:
     try:
         with open(config_path, 'r', encoding='utf-8') as f:
             loaded = json.load(f)
-            # Mezclar con defaults para asegurar todas las claves
             for key, value in default_config.items():
                 if key not in loaded:
                     loaded[key] = value
@@ -92,10 +92,7 @@ def load_highscore() -> int:
 
 
 def save_highscore(score: int) -> bool:
-    """
-    Guarda el highscore en highscore.json.
-    Retorna True si se guardó exitosamente.
-    """
+    """Guarda el highscore en highscore.json."""
     highscore_path = os.path.join(BASE_DIR, 'highscore.json')
     try:
         with open(highscore_path, 'w', encoding='utf-8') as f:
@@ -107,30 +104,174 @@ def save_highscore(score: int) -> bool:
 
 
 # ============================================================================
+# CONTROLES TÁCTILES PARA MÓVILES
+# ============================================================================
+
+class TouchControls:
+    """Controles táctiles virtuales para dispositivos móviles."""
+    
+    def __init__(self, screen_width: int, screen_height: int):
+        self.screen_width = screen_width
+        self.screen_height = screen_height
+        
+        # Tamaño de botones
+        self.btn_size = 60
+        self.btn_margin = 10
+        
+        # Posición del D-pad (esquina inferior izquierda)
+        self.dpad_x = self.btn_margin + self.btn_size
+        self.dpad_y = screen_height - self.btn_margin - self.btn_size * 2
+        
+        # Rectángulos de los botones
+        self.btn_up = pygame.Rect(
+            self.dpad_x, 
+            self.dpad_y - self.btn_size, 
+            self.btn_size, self.btn_size
+        )
+        self.btn_down = pygame.Rect(
+            self.dpad_x, 
+            self.dpad_y + self.btn_size, 
+            self.btn_size, self.btn_size
+        )
+        self.btn_left = pygame.Rect(
+            self.dpad_x - self.btn_size, 
+            self.dpad_y, 
+            self.btn_size, self.btn_size
+        )
+        self.btn_right = pygame.Rect(
+            self.dpad_x + self.btn_size, 
+            self.dpad_y, 
+            self.btn_size, self.btn_size
+        )
+        
+        # Botón de acción (esquina inferior derecha)
+        self.btn_action = pygame.Rect(
+            screen_width - self.btn_margin - self.btn_size * 2,
+            screen_height - self.btn_margin - self.btn_size * 2,
+            self.btn_size * 2,
+            self.btn_size * 2
+        )
+        
+        # Estado de los botones
+        self.pressing = {
+            'up': False, 'down': False, 'left': False, 'right': False, 'action': False
+        }
+        
+        # Touch activos
+        self.active_touches = {}
+    
+    def handle_touch_down(self, pos: Tuple[int, int], touch_id: int = 0):
+        """Maneja el inicio de un toque."""
+        self.active_touches[touch_id] = pos
+        self._update_button_states(pos, True)
+    
+    def handle_touch_up(self, touch_id: int = 0):
+        """Maneja el fin de un toque."""
+        if touch_id in self.active_touches:
+            del self.active_touches[touch_id]
+        
+        # Resetear estados si no hay más toques
+        if not self.active_touches:
+            for key in self.pressing:
+                self.pressing[key] = False
+    
+    def handle_touch_move(self, pos: Tuple[int, int], touch_id: int = 0):
+        """Maneja el movimiento de un toque."""
+        self.active_touches[touch_id] = pos
+        # Resetear y recalcular
+        for key in self.pressing:
+            self.pressing[key] = False
+        for t_pos in self.active_touches.values():
+            self._update_button_states(t_pos, True)
+    
+    def _update_button_states(self, pos: Tuple[int, int], pressed: bool):
+        """Actualiza el estado de los botones basado en la posición del toque."""
+        if self.btn_up.collidepoint(pos):
+            self.pressing['up'] = pressed
+        elif self.btn_down.collidepoint(pos):
+            self.pressing['down'] = pressed
+        elif self.btn_left.collidepoint(pos):
+            self.pressing['left'] = pressed
+        elif self.btn_right.collidepoint(pos):
+            self.pressing['right'] = pressed
+        elif self.btn_action.collidepoint(pos):
+            self.pressing['action'] = pressed
+    
+    def get_keys_pressed(self) -> Dict[int, bool]:
+        """Retorna un diccionario compatible con el sistema de teclas."""
+        return {
+            pygame.K_UP: self.pressing['up'],
+            pygame.K_DOWN: self.pressing['down'],
+            pygame.K_LEFT: self.pressing['left'],
+            pygame.K_RIGHT: self.pressing['right'],
+            pygame.K_SPACE: self.pressing['action'],
+        }
+    
+    def is_action_pressed(self) -> bool:
+        """Retorna True si el botón de acción fue presionado."""
+        return self.pressing['action']
+    
+    def draw(self, screen: pygame.Surface, alpha: int = 100):
+        """Dibuja los controles táctiles en pantalla."""
+        # Superficie semi-transparente
+        overlay = pygame.Surface((self.screen_width, self.screen_height), pygame.SRCALPHA)
+        
+        btn_color = (*LIGHT_BLUE, alpha)
+        btn_pressed_color = (*GREEN, alpha + 50)
+        text_color = (*WHITE, 200)
+        
+        # Dibujar D-pad
+        buttons = [
+            (self.btn_up, 'up', '▲'),
+            (self.btn_down, 'down', '▼'),
+            (self.btn_left, 'left', '◄'),
+            (self.btn_right, 'right', '►'),
+        ]
+        
+        for rect, key, symbol in buttons:
+            color = btn_pressed_color if self.pressing[key] else btn_color
+            pygame.draw.rect(overlay, color, rect, border_radius=10)
+            pygame.draw.rect(overlay, (*WHITE, 150), rect, 2, border_radius=10)
+            
+            # Símbolo
+            font = pygame.font.Font(None, 36)
+            text = font.render(symbol, True, text_color)
+            text_rect = text.get_rect(center=rect.center)
+            overlay.blit(text, text_rect)
+        
+        # Dibujar botón de acción
+        action_color = btn_pressed_color if self.pressing['action'] else btn_color
+        pygame.draw.circle(overlay, action_color, self.btn_action.center, self.btn_size)
+        pygame.draw.circle(overlay, (*WHITE, 150), self.btn_action.center, self.btn_size, 3)
+        
+        font = pygame.font.Font(None, 24)
+        text = font.render("TAP", True, text_color)
+        text_rect = text.get_rect(center=self.btn_action.center)
+        overlay.blit(text, text_rect)
+        
+        screen.blit(overlay, (0, 0))
+
+
+# ============================================================================
 # CLASES DEL JUEGO
 # ============================================================================
 
 class Bird(pygame.sprite.Sprite):
-    """
-    Clase que representa al pájaro (jugador).
-    Soporta animación de 3 frames y movimiento en 4 direcciones.
-    """
+    """Clase que representa al pájaro (jugador)."""
     
     def __init__(self, x: int, y: int, config: Dict):
         super().__init__()
         self.config = config
         self.speed = config['birdSpeed']
         
-        # Cargar frames de animación
         self.frames = self._load_frames()
         self.current_frame = 0
         self.animation_timer = 0
-        self.animation_speed = 0.15  # Segundos por frame
+        self.animation_speed = 0.15
         
         self.image = self.frames[self.current_frame]
         self.rect = self.image.get_rect(center=(x, y))
         
-        # Para detectar cuando cruza un carril
         self.last_lane = -1
         self.crossed_lanes = set()
     
@@ -143,33 +284,21 @@ class Bird(pygame.sprite.Sprite):
             path = os.path.join(assets_dir, f'bird_{i}.png')
             try:
                 img = pygame.image.load(path).convert_alpha()
-                # Escalar si es necesario
                 img = pygame.transform.scale(img, (40, 40))
                 frames.append(img)
             except pygame.error:
-                # Crear placeholder si no existe el archivo
                 surf = pygame.Surface((40, 40), pygame.SRCALPHA)
                 pygame.draw.circle(surf, YELLOW, (20, 20), 15)
-                pygame.draw.circle(surf, ORANGE, (20, 15 + i*2), 8)  # Ala animada
-                pygame.draw.circle(surf, BLACK, (28, 15), 3)  # Ojo
-                pygame.draw.polygon(surf, ORANGE, [(32, 20), (40, 18), (40, 22)])  # Pico
+                pygame.draw.circle(surf, ORANGE, (20, 15 + i*2), 8)
+                pygame.draw.circle(surf, BLACK, (28, 15), 3)
+                pygame.draw.polygon(surf, ORANGE, [(32, 20), (40, 18), (40, 22)])
                 frames.append(surf)
         
         return frames
     
     def update(self, dt: float, keys_pressed: Dict[int, bool], 
                screen_width: int, screen_height: int, safe_zone_height: int):
-        """
-        Actualiza la posición y animación del pájaro.
-        
-        Args:
-            dt: Delta time en segundos
-            keys_pressed: Diccionario de teclas presionadas
-            screen_width: Ancho de pantalla
-            screen_height: Alto de pantalla
-            safe_zone_height: Altura de la zona segura inferior
-        """
-        # Movimiento
+        """Actualiza la posición y animación del pájaro."""
         dx, dy = 0, 0
         if keys_pressed.get(pygame.K_LEFT, False):
             dx = -self.speed * dt
@@ -180,18 +309,14 @@ class Bird(pygame.sprite.Sprite):
         if keys_pressed.get(pygame.K_DOWN, False):
             dy = self.speed * dt
         
-        # Aplicar movimiento con límites
         self.rect.x += dx
         self.rect.y += dy
         
-        # Mantener dentro de pantalla
         self.rect.clamp_ip(pygame.Rect(0, 0, screen_width, screen_height))
         
-        # No permitir bajar más allá de la zona segura inferior
         if self.rect.bottom > screen_height - safe_zone_height + self.rect.height:
             self.rect.bottom = screen_height - safe_zone_height + self.rect.height
         
-        # Animación
         self.animation_timer += dt
         if self.animation_timer >= self.animation_speed:
             self.animation_timer = 0
@@ -205,7 +330,7 @@ class Bird(pygame.sprite.Sprite):
         self.last_lane = -1
     
     def get_current_lane(self, lane_rects: List[pygame.Rect]) -> int:
-        """Retorna el índice del carril actual (-1 si no está en ninguno)."""
+        """Retorna el índice del carril actual."""
         for i, lane_rect in enumerate(lane_rects):
             if lane_rect.colliderect(self.rect):
                 return i
@@ -213,25 +338,12 @@ class Bird(pygame.sprite.Sprite):
 
 
 class Plane(pygame.sprite.Sprite):
-    """
-    Clase que representa un avión enemigo.
-    Se mueve linealmente de izquierda a derecha o viceversa.
-    """
+    """Clase que representa un avión enemigo."""
     
-    # Cache de imágenes cargadas
     _image_cache: Dict[str, pygame.Surface] = {}
     
     def __init__(self, lane_index: int, lane_y: int, direction: int, 
                  speed: float, plane_type: str, screen_width: int):
-        """
-        Args:
-            lane_index: Índice del carril
-            lane_y: Posición Y del centro del carril
-            direction: 1 = derecha, -1 = izquierda
-            speed: Velocidad en píxeles por segundo
-            plane_type: 'small', 'med' o 'large'
-            screen_width: Ancho de pantalla
-        """
         super().__init__()
         
         self.lane_index = lane_index
@@ -240,19 +352,15 @@ class Plane(pygame.sprite.Sprite):
         self.plane_type = plane_type
         self.screen_width = screen_width
         
-        # Cargar imagen
         self.image = self._load_image(plane_type, direction)
         self.rect = self.image.get_rect()
         
-        # Posición inicial fuera de pantalla
         if direction > 0:
             self.rect.right = 0
         else:
             self.rect.left = screen_width
         
         self.rect.centery = lane_y
-        
-        # Posición flotante para movimiento suave
         self.x = float(self.rect.x)
     
     @classmethod
@@ -273,24 +381,19 @@ class Plane(pygame.sprite.Sprite):
             img = pygame.image.load(path).convert_alpha()
             img = pygame.transform.scale(img, size)
         except pygame.error:
-            # Crear placeholder
             img = pygame.Surface(size, pygame.SRCALPHA)
             colors = {'small': BLUE, 'med': GRAY, 'large': RED}
             color = colors.get(plane_type, GRAY)
             
-            # Fuselaje
             pygame.draw.ellipse(img, color, (0, size[1]//4, size[0], size[1]//2))
-            # Alas
             pygame.draw.polygon(img, DARK_GRAY, [
                 (size[0]//3, size[1]//2),
                 (size[0]//2, 0),
                 (size[0]//2, size[1])
             ])
-            # Cabina
             pygame.draw.ellipse(img, (50, 50, 80), 
                               (size[0]-size[0]//4, size[1]//3, size[0]//5, size[1]//3))
         
-        # Voltear si va hacia la izquierda
         if direction < 0:
             img = pygame.transform.flip(img, True, False)
         
@@ -311,10 +414,7 @@ class Plane(pygame.sprite.Sprite):
 
 
 class Lane:
-    """
-    Representa un carril donde aparecen aviones.
-    Gestiona el spawn de aviones evitando overlapping.
-    """
+    """Representa un carril donde aparecen aviones."""
     
     def __init__(self, index: int, y: int, height: int, direction: int,
                  config: Dict, screen_width: int):
@@ -328,62 +428,45 @@ class Lane:
         self.planes: List[Plane] = []
         self.spawn_timer = random.uniform(0, 1.0 / config['spawnRate'])
         
-        # Tipos de aviones con pesos
         self.plane_types = ['small', 'med', 'large']
-        self.type_weights = [0.5, 0.35, 0.15]  # Pequeños más frecuentes
+        self.type_weights = [0.5, 0.35, 0.15]
     
     @property
     def rect(self) -> pygame.Rect:
-        """Retorna el rectángulo del carril."""
         return pygame.Rect(0, self.y - self.height // 2, 
                           self.screen_width, self.height)
     
     def _get_spawn_rate(self, difficulty_multiplier: float) -> float:
-        """Calcula la tasa de spawn actual considerando dificultad."""
         return self.config['spawnRate'] * difficulty_multiplier
     
     def _get_speed_range(self, difficulty_multiplier: float) -> Tuple[float, float]:
-        """Calcula el rango de velocidad actual considerando dificultad."""
         base_min, base_max = self.config['planeSpeedRange']
         return (base_min * difficulty_multiplier, base_max * difficulty_multiplier)
     
     def _can_spawn(self) -> bool:
-        """
-        Verifica si se puede spawnear un nuevo avión sin overlap.
-        Usa minSpawnDistancePx para evitar que los aviones estén muy juntos.
-        """
         min_distance = self.config['minSpawnDistancePx']
         
         for plane in self.planes:
             if self.direction > 0:
-                # Aviones van hacia la derecha, spawn a la izquierda
                 if plane.rect.left < min_distance:
                     return False
             else:
-                # Aviones van hacia la izquierda, spawn a la derecha
                 if plane.rect.right > self.screen_width - min_distance:
                     return False
         
         return True
     
     def _choose_plane_type(self) -> str:
-        """Elige un tipo de avión según los pesos definidos."""
         return random.choices(self.plane_types, weights=self.type_weights)[0]
     
     def update(self, dt: float, difficulty_multiplier: float) -> List[Plane]:
-        """
-        Actualiza el carril y sus aviones.
-        Retorna lista de nuevos aviones spawneados.
-        """
         new_planes = []
         
-        # Actualizar aviones existentes
         for plane in self.planes[:]:
             plane.update(dt)
             if plane.is_off_screen():
                 self.planes.remove(plane)
         
-        # Intentar spawnear nuevo avión
         spawn_rate = self._get_spawn_rate(difficulty_multiplier)
         self.spawn_timer -= dt
         
@@ -410,14 +493,11 @@ class Lane:
         return new_planes
     
     def clear(self):
-        """Elimina todos los aviones del carril."""
         self.planes.clear()
 
 
 class GameUI:
-    """
-    Maneja la interfaz de usuario: menú, HUD, pantalla de Game Over.
-    """
+    """Maneja la interfaz de usuario."""
     
     def __init__(self, screen: pygame.Surface, config: Dict):
         self.screen = screen
@@ -425,7 +505,6 @@ class GameUI:
         self.width = config['screenWidth']
         self.height = config['screenHeight']
         
-        # Fuentes
         pygame.font.init()
         try:
             self.font_large = pygame.font.Font(None, 72)
@@ -438,33 +517,29 @@ class GameUI:
     
     def draw_menu(self, highscore: int):
         """Dibuja el menú principal."""
-        # Fondo semi-transparente
         overlay = pygame.Surface((self.width, self.height))
         overlay.fill(DARK_GRAY)
         overlay.set_alpha(200)
         self.screen.blit(overlay, (0, 0))
         
-        # Título
         title = self.font_large.render("BIRDS & PLANES", True, YELLOW)
         title_rect = title.get_rect(center=(self.width // 2, self.height // 4))
         self.screen.blit(title, title_rect)
         
-        # Subtítulo
-        subtitle = self.font_small.render("Un juego de esquivar aviones", True, WHITE)
+        subtitle = self.font_small.render("Esquiva los aviones!", True, WHITE)
         subtitle_rect = subtitle.get_rect(center=(self.width // 2, self.height // 4 + 50))
         self.screen.blit(subtitle, subtitle_rect)
         
-        # Highscore
         hs_text = self.font_medium.render(f"Record: {highscore}", True, ORANGE)
         hs_rect = hs_text.get_rect(center=(self.width // 2, self.height // 2 - 30))
         self.screen.blit(hs_text, hs_rect)
         
-        # Instrucciones
+        # Instrucciones adaptadas para móvil y PC
         instructions = [
-            "Flechas: Mover pajaro",
-            "P: Pausar | M: Sonido | ESC: Salir",
+            "PC: Flechas para mover",
+            "Movil: Usa los controles tactiles",
             "",
-            "Presiona ESPACIO para comenzar"
+            "TOCA o presiona ESPACIO"
         ]
         
         y_offset = self.height // 2 + 40
@@ -477,34 +552,22 @@ class GameUI:
     def draw_hud(self, score: int, lives: int, highscore: int, 
                  sound_on: bool, paused: bool):
         """Dibuja el HUD durante el juego."""
-        # Panel superior
-        pygame.draw.rect(self.screen, (0, 0, 0, 150), (0, 0, self.width, 40))
+        pygame.draw.rect(self.screen, (0, 0, 0, 150), (0, 0, self.width, 45))
         
-        # Puntuación
         score_text = self.font_small.render(f"Puntos: {score}", True, WHITE)
-        self.screen.blit(score_text, (10, 8))
+        self.screen.blit(score_text, (10, 10))
         
-        # Vidas (corazones)
         lives_text = self.font_small.render("Vidas: ", True, WHITE)
-        self.screen.blit(lives_text, (self.width // 2 - 80, 8))
+        self.screen.blit(lives_text, (self.width // 2 - 80, 10))
         
         for i in range(lives):
             pygame.draw.circle(self.screen, RED, 
-                             (self.width // 2 + i * 25, 20), 8)
+                             (self.width // 2 + i * 25, 22), 8)
         
-        # Highscore
         hs_text = self.font_small.render(f"Record: {highscore}", True, ORANGE)
-        hs_rect = hs_text.get_rect(topright=(self.width - 10, 8))
+        hs_rect = hs_text.get_rect(topright=(self.width - 10, 10))
         self.screen.blit(hs_text, hs_rect)
         
-        # Indicador de sonido
-        sound_text = self.font_small.render(
-            f"[M] {'ON' if sound_on else 'OFF'}", True, 
-            GREEN if sound_on else GRAY
-        )
-        self.screen.blit(sound_text, (self.width - 80, self.height - 30))
-        
-        # Indicador de pausa
         if paused:
             pause_overlay = pygame.Surface((self.width, self.height))
             pause_overlay.fill(BLACK)
@@ -515,7 +578,7 @@ class GameUI:
             pause_rect = pause_text.get_rect(center=(self.width // 2, self.height // 2))
             self.screen.blit(pause_text, pause_rect)
             
-            resume_text = self.font_small.render("Presiona P para continuar", True, GRAY)
+            resume_text = self.font_small.render("Toca para continuar", True, GRAY)
             resume_rect = resume_text.get_rect(center=(self.width // 2, self.height // 2 + 50))
             self.screen.blit(resume_text, resume_rect)
     
@@ -526,17 +589,14 @@ class GameUI:
         overlay.set_alpha(220)
         self.screen.blit(overlay, (0, 0))
         
-        # Game Over
         go_text = self.font_large.render("GAME OVER", True, RED)
         go_rect = go_text.get_rect(center=(self.width // 2, self.height // 3))
         self.screen.blit(go_text, go_rect)
         
-        # Puntuación final
         score_text = self.font_medium.render(f"Puntuacion: {score}", True, WHITE)
         score_rect = score_text.get_rect(center=(self.width // 2, self.height // 2 - 20))
         self.screen.blit(score_text, score_rect)
         
-        # Nuevo récord
         if is_new_record:
             record_text = self.font_medium.render("NUEVO RECORD!", True, YELLOW)
             record_rect = record_text.get_rect(center=(self.width // 2, self.height // 2 + 30))
@@ -546,13 +606,12 @@ class GameUI:
             hs_rect = hs_text.get_rect(center=(self.width // 2, self.height // 2 + 30))
             self.screen.blit(hs_text, hs_rect)
         
-        # Instrucciones
-        restart_text = self.font_small.render("R: Reiniciar | ESC: Menu", True, GRAY)
+        restart_text = self.font_small.render("TOCA para reiniciar", True, GRAY)
         restart_rect = restart_text.get_rect(center=(self.width // 2, self.height * 2 // 3 + 30))
         self.screen.blit(restart_text, restart_rect)
     
     def draw_safe_zone(self, y: int, height: int):
-        """Dibuja la zona segura (inicio)."""
+        """Dibuja la zona segura."""
         zone_rect = pygame.Rect(0, y, self.width, height)
         pygame.draw.rect(self.screen, (50, 150, 50, 100), zone_rect)
         pygame.draw.line(self.screen, GREEN, (0, y), (self.width, y), 2)
@@ -563,19 +622,14 @@ class GameUI:
         pygame.draw.rect(self.screen, (50, 50, 150, 100), zone_rect)
         pygame.draw.line(self.screen, BLUE, (0, y + height), (self.width, y + height), 2)
         
-        # Bandera de llegada
         flag_text = self.font_small.render("META!", True, WHITE)
         flag_rect = flag_text.get_rect(center=(self.width // 2, y + height // 2))
         self.screen.blit(flag_text, flag_rect)
 
 
 class GameScene:
-    """
-    Escena principal del juego. Maneja la lógica de juego,
-    colisiones, puntuación y estados.
-    """
+    """Escena principal del juego."""
     
-    # Estados del juego
     STATE_MENU = 'menu'
     STATE_PLAYING = 'playing'
     STATE_PAUSED = 'paused'
@@ -587,44 +641,34 @@ class GameScene:
         self.width = config['screenWidth']
         self.height = config['screenHeight']
         
-        # Cargar fondo
         self.background = self._load_background()
-        
-        # Crear UI
         self.ui = GameUI(screen, config)
+        self.touch_controls = TouchControls(self.width, self.height)
         
-        # Cargar highscore
         self.highscore = load_highscore()
         
-        # Estado inicial
         self.state = self.STATE_MENU
         self.score = 0
         self.lives = config['lives']
         self.sound_enabled = config.get('soundEnabled', True)
         self.is_new_record = False
         
-        # Tiempo de juego y dificultad
         self.game_time = 0
         self.difficulty_multiplier = 1.0
         
-        # Zonas seguras
         self.safe_zone_height = 60
         self.finish_zone_y = 50
         self.finish_zone_height = 50
         
-        # Crear carriles
         self._create_lanes()
         
-        # Crear pájaro
         start_x = self.width // 2
         start_y = self.height - self.safe_zone_height // 2
         self.bird = Bird(start_x, start_y, config)
         
-        # Grupo de sprites para renderizado
         self.all_sprites = pygame.sprite.Group()
         self.plane_sprites = pygame.sprite.Group()
         
-        # Cargar sonidos
         self._load_sounds()
     
     def _load_background(self) -> pygame.Surface:
@@ -634,29 +678,20 @@ class GameScene:
             bg = pygame.image.load(path).convert()
             return pygame.transform.scale(bg, (self.width, self.height))
         except pygame.error:
-            # Crear fondo procedural
             bg = pygame.Surface((self.width, self.height))
-            
-            # Gradiente de cielo
             for y in range(self.height):
                 t = y / self.height
                 r = int(135 * (1-t) + 200 * t)
                 g = int(206 * (1-t) + 230 * t)
                 b = int(250 * (1-t) + 255 * t)
                 pygame.draw.line(bg, (r, g, b), (0, y), (self.width, y))
-            
             return bg
     
     def _load_sounds(self):
         """Carga los efectos de sonido."""
         self.sounds = {}
-        
-        # Intentar inicializar el mixer
         try:
             pygame.mixer.init()
-            
-            # Crear sonidos sintéticos simples
-            # Colisión (sonido grave)
             collision_sound = pygame.mixer.Sound(buffer=bytes([
                 int(128 + 100 * (i % 20 < 10 and 1 or -1) * max(0, 1 - i/1000))
                 for i in range(2000)
@@ -664,14 +699,12 @@ class GameScene:
             collision_sound.set_volume(0.3)
             self.sounds['collision'] = collision_sound
             
-            # Punto (sonido agudo)
             point_sound = pygame.mixer.Sound(buffer=bytes([
                 int(128 + 80 * (i % 8 < 4 and 1 or -1) * max(0, 1 - i/800))
                 for i in range(1500)
             ]))
             point_sound.set_volume(0.2)
             self.sounds['point'] = point_sound
-            
         except pygame.error:
             print("Advertencia: No se pudo inicializar el sistema de sonido.")
             self.sounds = {}
@@ -688,9 +721,7 @@ class GameScene:
         """Crea los carriles del juego."""
         self.lanes: List[Lane] = []
         num_lanes = self.config['numLanes']
-        lane_height = self.config['laneHeight']
         
-        # Área de juego (entre zona segura y zona de llegada)
         play_area_top = self.finish_zone_y + self.finish_zone_height
         play_area_bottom = self.height - self.safe_zone_height
         play_area_height = play_area_bottom - play_area_top
@@ -699,7 +730,6 @@ class GameScene:
         
         for i in range(num_lanes):
             lane_y = int(play_area_top + lane_spacing * (i + 0.5))
-            # Alternar direcciones
             direction = 1 if i % 2 == 0 else -1
             
             lane = Lane(
@@ -713,31 +743,25 @@ class GameScene:
             self.lanes.append(lane)
     
     def _reset_game(self):
-        """Reinicia el juego para una nueva partida."""
+        """Reinicia el juego."""
         self.score = 0
         self.lives = self.config['lives']
         self.game_time = 0
         self.difficulty_multiplier = 1.0
         self.is_new_record = False
         
-        # Limpiar carriles
         for lane in self.lanes:
             lane.clear()
         
-        # Limpiar sprites
         self.plane_sprites.empty()
         
-        # Resetear pájaro
         start_x = self.width // 2
         start_y = self.height - self.safe_zone_height // 2
         self.bird.reset_position(start_x, start_y)
     
     def _check_collisions(self) -> bool:
-        """
-        Verifica colisiones AABB entre el pájaro y los aviones.
-        Retorna True si hubo colisión.
-        """
-        bird_rect = self.bird.rect.inflate(-10, -10)  # Hitbox más pequeño
+        """Verifica colisiones AABB."""
+        bird_rect = self.bird.rect.inflate(-10, -10)
         
         for lane in self.lanes:
             for plane in lane.planes:
@@ -748,27 +772,20 @@ class GameScene:
         return False
     
     def _check_lane_cross(self) -> bool:
-        """
-        Verifica si el pájaro cruzó un carril nuevo.
-        Retorna True si ganó puntos.
-        """
+        """Verifica si el pájaro cruzó un carril."""
         lane_rects = [lane.rect for lane in self.lanes]
         current_lane = self.bird.get_current_lane(lane_rects)
         
-        # Verificar si llegó a la meta
         if self.bird.rect.top <= self.finish_zone_y + self.finish_zone_height:
-            # Completó el cruce, dar puntos bonus y resetear
             self.score += self.config['pointsPerCross'] * 2
             self._play_sound('point')
             
-            # Resetear posición
             start_x = self.width // 2
             start_y = self.height - self.safe_zone_height // 2
             self.bird.reset_position(start_x, start_y)
             
             return True
         
-        # Verificar cruce de carriles
         if current_lane >= 0 and current_lane not in self.bird.crossed_lanes:
             self.bird.crossed_lanes.add(current_lane)
             self.score += self.config['pointsPerCross']
@@ -778,43 +795,62 @@ class GameScene:
         return False
     
     def _update_difficulty(self, dt: float):
-        """Actualiza la dificultad basada en el tiempo de juego."""
+        """Actualiza la dificultad."""
         self.game_time += dt
         
         step_time = self.config['difficultyStepEveryXSeconds']
         multiplier = self.config['difficultySpeedMultiplier']
         
-        # Calcular multiplicador basado en tiempo
         steps = int(self.game_time / step_time)
         self.difficulty_multiplier = multiplier ** steps
     
     def _handle_collision(self):
-        """Maneja una colisión con un avión."""
+        """Maneja una colisión."""
         self._play_sound('collision')
         self.lives -= 1
         
         if self.lives <= 0:
-            # Game Over
             if self.score > self.highscore:
                 self.highscore = self.score
                 save_highscore(self.highscore)
                 self.is_new_record = True
             self.state = self.STATE_GAME_OVER
         else:
-            # Resetear posición pero mantener puntos
             start_x = self.width // 2
             start_y = self.height - self.safe_zone_height // 2
             self.bird.reset_position(start_x, start_y)
     
     def handle_event(self, event: pygame.event.Event) -> bool:
-        """Procesa eventos de entrada. Retorna False para salir."""
-        if event.type == pygame.KEYDOWN:
+        """Procesa eventos de entrada."""
+        # Manejar eventos táctiles
+        if event.type == pygame.MOUSEBUTTONDOWN:
+            self.touch_controls.handle_touch_down(event.pos)
+            
+            # Acciones según estado
+            if self.state == self.STATE_MENU:
+                self._reset_game()
+                self.state = self.STATE_PLAYING
+            elif self.state == self.STATE_PAUSED:
+                self.state = self.STATE_PLAYING
+            elif self.state == self.STATE_GAME_OVER:
+                self._reset_game()
+                self.state = self.STATE_PLAYING
+        
+        elif event.type == pygame.MOUSEBUTTONUP:
+            self.touch_controls.handle_touch_up()
+        
+        elif event.type == pygame.MOUSEMOTION:
+            if pygame.mouse.get_pressed()[0]:
+                self.touch_controls.handle_touch_move(event.pos)
+        
+        # Manejar eventos de teclado
+        elif event.type == pygame.KEYDOWN:
             if self.state == self.STATE_MENU:
                 if event.key == pygame.K_SPACE:
                     self._reset_game()
                     self.state = self.STATE_PLAYING
                 elif event.key == pygame.K_ESCAPE:
-                    return False  # Salir del juego
+                    return False
             
             elif self.state == self.STATE_PLAYING:
                 if event.key == pygame.K_p:
@@ -831,74 +867,72 @@ class GameScene:
                     self.state = self.STATE_MENU
             
             elif self.state == self.STATE_GAME_OVER:
-                if event.key == pygame.K_r:
+                if event.key == pygame.K_r or event.key == pygame.K_SPACE:
                     self._reset_game()
                     self.state = self.STATE_PLAYING
                 elif event.key == pygame.K_ESCAPE:
                     self.state = self.STATE_MENU
         
-        return True  # Continuar juego
+        return True
     
     def update(self, dt: float, keys_pressed: Dict[int, bool]):
         """Actualiza la lógica del juego."""
         if self.state != self.STATE_PLAYING:
             return
         
-        # Actualizar dificultad
+        # Combinar teclas físicas con controles táctiles
+        touch_keys = self.touch_controls.get_keys_pressed()
+        combined_keys = {**keys_pressed}
+        for key, value in touch_keys.items():
+            if value:
+                combined_keys[key] = True
+        
         self._update_difficulty(dt)
         
-        # Actualizar pájaro
-        self.bird.update(dt, keys_pressed, self.width, self.height, 
+        self.bird.update(dt, combined_keys, self.width, self.height, 
                         self.safe_zone_height)
         
-        # Actualizar carriles y aviones
         for lane in self.lanes:
             new_planes = lane.update(dt, self.difficulty_multiplier)
             for plane in new_planes:
                 self.plane_sprites.add(plane)
         
-        # Verificar colisiones
         if self._check_collisions():
             self._handle_collision()
         
-        # Verificar cruce de carriles
         self._check_lane_cross()
     
     def draw(self):
         """Dibuja la escena del juego."""
-        # Fondo
         self.screen.blit(self.background, (0, 0))
         
         if self.state == self.STATE_MENU:
             self.ui.draw_menu(self.highscore)
         
         elif self.state in [self.STATE_PLAYING, self.STATE_PAUSED]:
-            # Dibujar zonas
             self.ui.draw_safe_zone(self.height - self.safe_zone_height, 
                                    self.safe_zone_height)
             self.ui.draw_finish_zone(self.finish_zone_y, self.finish_zone_height)
             
-            # Dibujar líneas de carril
             for lane in self.lanes:
                 y = lane.y
                 pygame.draw.line(self.screen, (100, 100, 100, 100), 
                                (0, y - lane.height // 2), 
                                (self.width, y - lane.height // 2), 1)
             
-            # Dibujar aviones
             for lane in self.lanes:
                 for plane in lane.planes:
                     self.screen.blit(plane.image, plane.rect)
             
-            # Dibujar pájaro
             self.screen.blit(self.bird.image, self.bird.rect)
             
-            # Dibujar HUD
+            # Dibujar controles táctiles
+            self.touch_controls.draw(self.screen)
+            
             self.ui.draw_hud(self.score, self.lives, self.highscore,
                            self.sound_enabled, self.state == self.STATE_PAUSED)
         
         elif self.state == self.STATE_GAME_OVER:
-            # Dibujar último frame del juego
             self.ui.draw_safe_zone(self.height - self.safe_zone_height,
                                    self.safe_zone_height)
             self.ui.draw_finish_zone(self.finish_zone_y, self.finish_zone_height)
@@ -909,27 +943,22 @@ class GameScene:
             
             self.screen.blit(self.bird.image, self.bird.rect)
             
-            # Overlay de Game Over
             self.ui.draw_game_over(self.score, self.highscore, self.is_new_record)
 
 
 # ============================================================================
-# FUNCIÓN PRINCIPAL (Compatible con Pygbag para web)
+# FUNCIÓN PRINCIPAL
 # ============================================================================
 
 async def main():
-    """Punto de entrada principal del juego (async para Pygbag)."""
-    # Inicializar Pygame
+    """Punto de entrada principal del juego."""
     pygame.init()
     
-    # Cargar configuración
     config = load_config()
     
-    # Crear ventana
     screen = pygame.display.set_mode((config['screenWidth'], config['screenHeight']))
     pygame.display.set_caption("Birds & Planes")
     
-    # Intentar establecer icono
     try:
         icon_path = os.path.join(BASE_DIR, 'assets', 'bird_1.png')
         if os.path.exists(icon_path):
@@ -938,23 +967,17 @@ async def main():
     except:
         pass
     
-    # Clock para controlar FPS
     clock = pygame.time.Clock()
     FPS = 60
     
-    # Crear escena del juego
     game = GameScene(screen, config)
     
-    # Diccionario de teclas presionadas
     keys_pressed = {}
     
-    # Loop principal
     running = True
     while running:
-        # Calcular delta time
         dt = clock.tick(FPS) / 1000.0
         
-        # Procesar eventos
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
                 running = False
@@ -964,20 +987,16 @@ async def main():
                     running = False
             elif event.type == pygame.KEYUP:
                 keys_pressed[event.key] = False
+            else:
+                game.handle_event(event)
         
-        # Actualizar
         game.update(dt, keys_pressed)
-        
-        # Dibujar
         game.draw()
         
-        # Actualizar pantalla
         pygame.display.flip()
         
-        # Yield para Pygbag (permite que el navegador procese otros eventos)
         await asyncio.sleep(0)
     
-    # Limpiar
     pygame.quit()
 
 
