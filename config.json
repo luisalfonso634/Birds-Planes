@@ -1,0 +1,16 @@
+{
+    "numLanes": 5,
+    "lives": 3,
+    "pointsPerCross": 100,
+    "spawnRate": 1.0,
+    "planeSpeedRange": [150, 320],
+    "difficultyStepEveryXSeconds": 15,
+    "difficultySpeedMultiplier": 1.08,
+    "minSpawnDistancePx": 120,
+    "screenWidth": 800,
+    "screenHeight": 600,
+    "birdSpeed": 200,
+    "laneHeight": 80,
+    "soundEnabled": true
+}
+
